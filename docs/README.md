@@ -7,5 +7,8 @@
   sprites if that's your target.
 - **[GEAR.md](GEAR.md)** - how gear attaches, adjusts and swaps: sockets, nudges, loadouts, and
   fitting grips.
+- **[SPRITES.md](SPRITES.md)** - making the final sprite export look native: the camera angle,
+  lighting, colour management, the ground shadow, the pivot rule and the team-colour mask, with
+  real numbers.
 
 See the [top-level README](../README.md) for installing the tools and a quickstart.

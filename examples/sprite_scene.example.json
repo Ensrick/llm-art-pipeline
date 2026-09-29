@@ -1,0 +1,64 @@
+{
+  "schema": "sprite_scene_config/1",
+  "notes": [
+    "One fixed scale, camera, canvas and pivot for every frame of a unit - never recentred or rescaled per pose.",
+    "These are real, working numbers from a shipped project's sprite pipeline, kept as a starting point - not a spec to match blindly. Re-derive px_per_m and the canvas size against your own reference (see docs/SPRITES.md); everything else here is a reasonable default.",
+    "Pivot: the projected ground origin (0, 0, ground_z); every frame renders on the same canvas with the pivot on the same whole pixel."
+  ],
+
+  "px_per_m": 57.37,
+  "ground_z": -0.004,
+
+  "camera": {"elevation_deg": 30.0, "looks_from": "-Y", "distance_m": 30.0},
+  "canvas": {"width": 384, "height": 384, "pivot_px": [192, 144], "pivot_from": "bottom-left", "margin_px": 2},
+
+  "render": {
+    "engine": "CYCLES", "device": "CPU", "samples": 64, "adaptive_sampling": false, "denoise": false,
+    "filter_width": 0.75, "view_transform": "Standard", "look": "None", "mask_view_transform": "Raw",
+    "threads": 2, "seed": 0, "persistent_data": true
+  },
+
+  "lighting": {
+    "preset": "default",
+    "target_m": [0.0, 0.0, 1.0],
+    "note": "key and fill are area (disk) lights aimed at target_m unless rotation_euler is given instead of aim; world is a flat background colour/strength (ambient fill). Re-tune all of it by eye against your own reference - there is nothing universal about these particular numbers beyond that they worked for one 1.75 m tall figure.",
+    "presets": {
+      "default": {
+        "key": {"offset_m": [-4.60, -2.60, 4.80], "energy_w": 380.0, "size_m": 1.60, "aim": true},
+        "fill": {"offset_m": [-0.40, -5.00, 1.40], "energy_w": 220.0, "size_m": 4.00, "aim": true},
+        "world": {"color": [0.3, 0.3, 0.3], "strength": 0.40}
+      }
+    }
+  },
+
+  "readability": {
+    "note": "thin rigid parts (a shaft, a bowstring) can vanish at small on-screen sizes. Scale just that material's faces radially about the object's own axis, on a render-only copy - never the approved model. One entry per thin part.",
+    "shaft_scale": 1.4,
+    "shafts": [
+      {"object": "Right_Hand_Spear", "material": "spear_wood"}
+    ]
+  },
+
+  "shadow": {
+    "note": "a flat silhouette of every rendered mesh except `exclude_objects`, sheared by (shear_x * height_above_ground, shear_y * height_above_ground) to suggest a low sun angle, rasterised at `supersample` x and downsampled, then composited under the beauty pass at `alpha`/255.",
+    "shear": [0.035, -0.09], "alpha": 149, "supersample": 3,
+    "exclude_objects": ["Right_Hand_Spear"],
+    "exclude_note": "anything that shouldn't cast a shadow of its own - a held weapon here, or something that already lies flat on the ground"
+  },
+
+  "mask": {
+    "note": "a second, Raw-view render with one flat-emission override material, so a game engine gets clean per-pixel channel data with no tone-mapping or anti-aliasing colour bleed. This config only wires up the red channel (team colour) by default; see docs/SPRITES.md for extending it with more flagged channels."
+  },
+
+  "team_colour": {
+    "note": "which part(s) carry team/variant colour is a design decision for your own project.",
+    "regions": [
+      {"object": "Left_Forearm_Shield", "material": "team_colour"}
+    ],
+    "region_forms": "each region is {object, material} (faces using that material slot) or {object, vertex_group, min_weight} (faces whose vertices all carry at least min_weight)",
+    "neutral_albedo": 0.70,
+    "neutral_note": "a multiply-based team-colour shader needs its target faces bright and neutral in the beauty render, or no tint shows once multiplied: grey = neutral_albedo x the face's own luminance / its texture's mean luminance."
+  },
+
+  "atlas": {"pixels_per_unit": 64, "width": 2048, "padding": 2}
+}

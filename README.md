@@ -23,8 +23,8 @@ it's the first thing to read.
 
 ```
 tools/    Reusable Blender + Python helpers (see below)
-docs/     PROCESS.md, ANIMATION.md, GEAR.md - the method, written for a newcomer
-examples/ A filled-in example config for tools/prepare_downloaded_model.py
+docs/     PROCESS.md, ANIMATION.md, GEAR.md, SPRITES.md - the method, written for a newcomer
+examples/ Filled-in example configs for tools/prepare_downloaded_model.py and tools/render_sprites.py
 ```
 
 **Tools:**
@@ -43,10 +43,13 @@ examples/ A filled-in example config for tools/prepare_downloaded_model.py
 | `review_render.py` | Turntables, fitted multi-view stills, game-timed MP4s, and the loop-seam check | Blender |
 | `frames_to_gif.py` | Assemble rendered frames into a shared-palette looping review GIF | system Python + Pillow |
 | `prepare_downloaded_model.py` | Measure, reorient and uniform-scale a downloaded model; bake its licence onto the result | Blender |
+| `render_sprites.py` | Native-look final sprite rendering: fixed camera/lights, ground shadow, team-colour mask (see `docs/SPRITES.md`) | Blender |
+| `finish_sprites.py` | Composite the ground shadow, build the finished mask, refuse anything that clips the canvas | system Python + Pillow |
+| `pack_atlas.py` | Crop, dedupe and pack finished frames into a pivot-indexed atlas | system Python + Pillow |
 
-`docs/PROCESS.md`, `docs/ANIMATION.md` and `docs/GEAR.md` explain what these are for and how they
-fit together; the tools are deliberately light on their own inline usage docs so those guides
-don't drift out of sync with the code.
+`docs/PROCESS.md`, `docs/ANIMATION.md`, `docs/GEAR.md` and `docs/SPRITES.md` explain what these are
+for and how they fit together; the tools are deliberately light on their own inline usage docs so
+those guides don't drift out of sync with the code.
 
 ## Requirements
 
@@ -148,10 +151,8 @@ facings = rr.render_views(
 )
 ```
 
-This writes one PNG per facing under `out/work/my_action/` - that *is* your sprite sheet's source
-frames; `anim_cookbook.contact_sheet` tiles them into one image, and
-`docs/ANIMATION.md` section 5.9 covers atlas-packing conventions if you need a packed atlas for a
-specific engine.
+This writes one PNG per facing under `out/work/my_action/` - that *is* your review sprite sheet's
+source frames; `anim_cookbook.contact_sheet` tiles them into one image for the review package.
 
 **5. Turn a sequence of rendered frames into a review GIF:**
 
@@ -162,6 +163,22 @@ py -3 tools/frames_to_gif.py out/review/my_action.gif out/work/my_action/*_mp4_0
 **6. Send the GIF, the sprite sheet, and a five-line changes note** to whoever is reviewing -
 that's the review package `docs/PROCESS.md` section 3 describes.
 
+**7. Once it's approved, render the final, native-look game sprites.** This is a separate, slower
+pass (`docs/PROCESS.md` step 8: only from a frozen, approved commit) with its own fixed camera,
+lighting and ground shadow so the result looks like it was built for your target engine rather than
+pasted on top of it - see [`docs/SPRITES.md`](docs/SPRITES.md) for every number and why. Copy
+`examples/sprite_scene.example.json`, then:
+
+```powershell
+& $blender --background -t 2 --factory-startup --python-exit-code 1 --python tools/render_sprites.py -- `
+    --config my_scene.json --rig my_unit.blend --action Walk_Loop --frames 0 2 4 6 8 10 12 14 --out out/raw/walk
+py -3 tools/finish_sprites.py --raw out/raw/walk --out out/frames/walk
+py -3 tools/pack_atlas.py --frames out/frames/walk --out out/atlas --config my_scene.json
+```
+
+`out/atlas/atlas.png` + `atlas_m.png` + `atlas_index.json` (rect, pivot and pixels-per-unit per
+frame) are what a game engine actually imports.
+
 ## How the review loop works
 
 In short (`docs/PROCESS.md` has the full version): an agent builds a change in 3D, behind a flag so
@@ -170,7 +187,8 @@ package (clips, stills, a before/after, a short changes note) goes to a human; t
 asks for a named edit, or defers; repeat until approved; only then does the slow final export run,
 from a frozen, committed state. `docs/ANIMATION.md` and `docs/GEAR.md` cover the animation- and
 gear-specific mechanics (retargeting, layering, sockets, loadouts, grips) and the automatic checks
-that back this up.
+that back this up; `docs/SPRITES.md` covers that final export in detail if your target is 2D game
+sprites.
 
 ## Assets
 

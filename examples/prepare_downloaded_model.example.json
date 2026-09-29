@@ -1,0 +1,33 @@
+{
+  "_comment": "Example config for tools/prepare_downloaded_model.py. Copy this file, fill in your own model, and pass the copy after `--`. Every path is relative to wherever you run Blender from.",
+
+  "input_blend": "downloads/example_axe/source.blend",
+  "source_object": "Axe",
+  "key": "hand_axe",
+  "output_dir": "out/prepared",
+
+  "provenance": {
+    "title": "Example Hand Axe",
+    "author": "REPLACE_WITH_ACTUAL_AUTHOR",
+    "license": "REPLACE_WITH_VERIFIED_LICENSE (e.g. CC0, CC BY 4.0 - check the source page, not just the file name)",
+    "url": "https://example.com/replace-with-the-actual-listing"
+  },
+
+  "orient": {
+    "axis": "auto",
+    "flip": false,
+    "origin_fraction_along_axis": 0.14,
+    "secondary_world": [0.0, 0.0, 1.0],
+    "primary_axis": "Z",
+    "secondary_axis": "Y"
+  },
+
+  "scale": {
+    "target_length_m": 0.78
+  },
+
+  "measure_diameter_at": {
+    "point_local": [0.0, 0.0, 0.0],
+    "axis_local": [0.0, 0.0, 1.0]
+  }
+}

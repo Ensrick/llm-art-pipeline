@@ -1,0 +1,77 @@
+# This repository ships process and tools only - never assets. See README.md.
+# Anything that looks like 3D, image, audio, video or archive data is ignored below,
+# even if it shows up nested inside an output or downloads folder.
+
+# 3D models and scenes
+*.blend
+*.blend1
+*.blend2
+*.blend[0-9][0-9]
+*.fbx
+*.obj
+*.mtl
+*.glb
+*.gltf
+*.dae
+*.3ds
+*.stl
+*.usd
+*.usda
+*.usdc
+*.usdz
+*.abc
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.tga
+*.dds
+*.exr
+*.hdr
+*.tif
+*.tiff
+*.bmp
+*.webp
+*.ico
+*.psd
+
+# Animation / video
+*.gif
+*.mp4
+*.webm
+*.mov
+*.avi
+*.mkv
+
+# Audio
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.aiff
+
+# Archives (how downloaded models/textures usually arrive)
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
+# Backups of any of the above, or of anything else (this project's own convention:
+# rename-to-.bak.vN instead of overwriting or deleting)
+*.bak.v*
+
+# Build/working/output folders - the process writes into these, nothing here ships
+out/
+_work/
+work/
+review/
+downloads/
+__pycache__/
+*.pyc
+
+# Editor/OS noise
+.DS_Store
+Thumbs.db

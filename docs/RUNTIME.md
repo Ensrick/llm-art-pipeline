@@ -99,6 +99,22 @@ A missing Script Extender or missing game assemblies fail the build immediately 
 (`ByzantineUnits.csproj`'s `CheckGameReferences` target) rather than a wall of missing-reference
 errors.
 
+**Build-verified**, `dotnet build runtime\ByzantineUnits.csproj -c Release --no-incremental
+-p:GameDir=...`, against a real installed copy of the game and its mods - **0 warnings, 0 errors**:
+
+| Piece | Exact version verified against |
+|---|---|
+| .NET SDK | 9.0.311 (`dotnet --version`; the repo also had 6.0.428 and 9.0.102 installed - any SDK that can target `net481` should do) |
+| Game | Stronghold Crusader Definitive Edition, Unity Player 2021.3.45.8976527 |
+| BepInEx | 5.4.23.4 |
+| Script Extender (SHCDESE) | 2.12.0 (its own `info.json`) |
+
+This confirms the trimmed `src/` compiles clean against the real `Assembly-CSharp.dll`,
+`UnityEngine.*`, `BepInEx.dll`, `MonoMod.RuntimeDetour.dll`/`MonoMod.Utils.dll` and `SHCDESE.dll`/
+`R3.dll` - not just reviewed by hand. The build was never pointed at the game to install anything;
+only `runtime\bin\` and `runtime\obj\` (both git-ignored) were written, and both were removed again
+afterward.
+
 ## 4. Install and rollback
 
 `runtime/install.ps1` builds the plugin, then copies it and any atlases it finds under `-ArtRoot`

@@ -72,6 +72,12 @@ downloads/
 __pycache__/
 *.pyc
 
+# .NET build output (runtime/ByzantineUnits.csproj) - a build artifact, never committed
+bin/
+obj/
+*.dll
+*.pdb
+
 # Editor/OS noise
 .DS_Store
 Thumbs.db

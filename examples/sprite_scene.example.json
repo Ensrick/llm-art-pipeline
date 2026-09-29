@@ -47,7 +47,8 @@
   },
 
   "mask": {
-    "note": "a second, Raw-view render with one flat-emission override material, so a game engine gets clean per-pixel channel data with no tone-mapping or anti-aliasing colour bleed. This config only wires up the red channel (team colour) by default; see docs/SPRITES.md for extending it with more flagged channels."
+    "note": "a second, Raw-view render with one flat-emission override material, so a game engine gets clean per-pixel channel data with no tone-mapping or anti-aliasing colour bleed. Red is team colour (below). Green here is measured from the game, not invented: SHCDE's own Unlit/TeamColour shader reads a second, height-based value from this same mask for a lower-sprite cutaway effect (docs/SHCDE.md section 7) - green = clamp(round(green_channel.intercept + green_channel.slope_per_px x (image_row - pivot_row_from_top)), 0, 255), top-origin rows. If your target engine doesn't use a channel like this, drop `green_channel` and green stays 0.",
+    "green_channel": {"intercept": 189.84, "slope_per_px": 2.23457}
   },
 
   "team_colour": {
@@ -58,6 +59,18 @@
     "region_forms": "each region is {object, material} (faces using that material slot) or {object, vertex_group, min_weight} (faces whose vertices all carry at least min_weight)",
     "neutral_albedo": 0.70,
     "neutral_note": "a multiply-based team-colour shader needs its target faces bright and neutral in the beauty render, or no tint shows once multiplied: grey = neutral_albedo x the face's own luminance / its texture's mean luminance."
+  },
+
+  "checks": {
+    "note": "optional per-frame measurements, geometric (from the 3D scene) and pixel (from the rendered mask), that tools/validate_sprites.py compares against each other as a sanity check - see docs/SPRITES.md section 9 and docs/SHCDE.md section 10.",
+    "reference_bone": "pelvis",
+    "tracked_objects": [
+      {"name": "shield", "object": "Left_Forearm_Shield", "mask_channel": "Green"}
+    ],
+    "facing_side_rule": {
+      "note": "measured from the game's own Hoplite-carrier example: at the front facing the tracked object reads on screen-right, at the back facing it reads on screen-left, and it should read larger/nearer at the left-profile facing than the right-profile one. Written for an object worn on the character's left; mirror the signs for one on the right.",
+      "front_facing": 3, "back_facing": 7, "near_facing": 5, "far_facing": 1
+    }
   },
 
   "atlas": {"pixels_per_unit": 64, "width": 2048, "padding": 2}

@@ -258,6 +258,32 @@ repository's `57.37` came from - it's a derived calibration constant for one spe
 rig, not a fact about the game engine. Re-derive it for your own model's proportions rather than
 reusing the number directly (see [SPRITES.md](SPRITES.md) section 2 for the general method).
 
+**The full comparison, per Pikeman block** - native rect height (min/median/max) and width
+(median/max) in pixels, and how far above/below the pivot the rect reaches, all measured directly
+from the installed game's own shipped sprite files (`tools/pikeman_carrier.py`'s
+`NATIVE_FRAME_SIZES_PX`, read by `tools/validate_sprites.py`). Native rects carry a loose margin of
+transparent pixels (0-52 px, median 4-5 px per side) that a tight custom render won't have, so
+treat "matches" as "falls in a plausible range", not an exact target:
+
+| Block | Height min/med/max | Width med/max | Top above pivot med/max | Below pivot max |
+|---|---|---|---|---|
+| Walk | 88 / 127 / 171 | 108 / 160 | 89.5 / 120 | 49 |
+| Walk `x` | 88 / 125.5 / 168 | 110 / 163 | 89.5 / 120 | 54 |
+| Celebrate | 111 / 138 / 169 | 55 / 112 | 111 / 135 | 32 |
+| Idle | 123 / 134 / 154 | 89 / 116 | 108 / 110 | 13 |
+| Sit and rest | 114 / 132.5 / 164 | 63 / 72 | 98 / 102 | 30 |
+| Melee up | 87 / 123 / 167 | 96 / 138 | 91.5 / 130 | 42 |
+| Melee level | 83 / 117 / 166 | 84 / 160 | 80.5 / 128 | 42 |
+| Melee down | 86 / 109 / 177 | 94.5 / 182 | 79 / 128 | 37 |
+| Dig and fill | 63 / 91.5 / 137 | 63.5 / 139 | 72 / 95 | 26 |
+| Death, back | 39 / 93.5 / 162 | 104 / 175 | 50.5 / 118 | 58 |
+| Death, back, arrow | 39 / 93.5 / 167 | 105.5 / 175 | 50.5 / 118 | 55 |
+| Death, forward | 44 / 90 / 158 | 97.5 / 192 | 50 / 120 | 54 |
+
+The upright pike tip reaches 105-110 px above the pivot in the idle and 135 px in the celebration
+(facing 0) - taller than the walk-phase-0 range above, since a raised weapon extends well past the
+body silhouette that range was measured from.
+
 ## 6. Canvas, pivot and atlas layout
 
 | Setting | Value |
@@ -284,15 +310,35 @@ reusing the number directly (see [SPRITES.md](SPRITES.md) section 2 for the gene
 - Every byte is SHA-256-checked against the manifest before the plugin loads it; a mismatch disables
   that unit's art (and its editor button) rather than showing something unverified.
 
+**Slot names.** A carrier sprite file's individual slots have names too, not just the numeric ranges
+in section 3 - the Pikeman's slot 482 (the dig block's first frame) is `body_pikeman-482`, i.e. the
+native sprite name the game itself uses (see `spriteLoader.addGMFile`'s registration order, exposed
+in this form since it's exactly what appears in the installed game's own sprite asset). Never
+requested slots aside, that naming is arithmetic (`base + 8 x phase + facing`, or `base + phase` for
+a single-facing block) - `tools/pikeman_carrier.py` implements it in code (`slot()`, `slot_name()`,
+`all_slot_names()`, `block_frames()`) with a self-check that every block tiles the carrier's slots
+exactly, so `tools/validate_sprites.py` can confirm a render's `--slot-map` covers a block's slots
+exactly once, with nothing missing or duplicated.
+
 ## 7. Team-colour mask
 
 The game's own sprite shader is `Unlit/TeamColour`, reading a `_TeamMask` texture (this pipeline's
 mask page) and a `_SpriteCutoff` float (a foot-clipping level, 0 for a fully-drawn sprite, `(level +
 4) / 20` for each of 6 clipped levels above it - used when a unit stands partly behind terrain).
-The mask's **red channel marks the team-coloured region**: painted bright in the mask, it's the area
-the shader tints with the owning player's colour. See [SPRITES.md](SPRITES.md) section 7 for the
-neutral-albedo technique that keeps the *un-tinted* beauty render from double-darkening once the
-shader's own tint multiplies it.
+The mask has two channels' worth of meaning, both measured from the installed game's own shipped
+mask sprites:
+
+- **Red marks the team-coloured region**: painted bright, it's the area the shader tints with the
+  owning player's colour. See [SPRITES.md](SPRITES.md) section 7 for the neutral-albedo technique
+  that keeps the *un-tinted* beauty render from double-darkening once the shader's own tint
+  multiplies it.
+- **Green is a row-based cutaway ramp**, read by the same shader for the foot-clipping effect above:
+  `green = clamp(round(189.84 + 2.23457 x (image_row - pivot_row_from_top)), 0, 255)`, with rows
+  counted top-origin in native pixels (this pipeline's px/unit already matches the native 64, so no
+  extra conversion is needed). `examples/sprite_scene.example.json`'s `mask.green_channel` carries
+  these two constants, and `tools/finish_sprites.py`'s `green_ramp()` computes it per frame,
+  overwriting whatever `render_sprites.py` put on the green channel for measurement purposes
+  (section 10) - the shipped mask's green channel is always this ramp, never a tracked-object flag.
 
 ## 8. Ground shadow
 
@@ -313,3 +359,27 @@ config.
 These are UI element sizes, not the unit's own sprite canvas (section 6) - they're what an editor
 troop-tab button and its hover preview actually render at, sized so pixel art stays crisp at the
 game's native UI scale.
+
+## 10. Validating a render against the game
+
+`tools/validate_sprites.py` runs three checks built from the facts above, on a `finish_sprites.py`
+output folder:
+
+- **Mask contract:** the mask's alpha channel matches the beauty render's alpha exactly.
+- **Native frame size** (`--carrier pikeman --block <name>`, or `--native-heights` with your own
+  numbers in the same shape): this render's bounds compared against section 5's table for the same
+  block. Reported as a comparison, not a hard gate - a real pose can legitimately sit outside a
+  range measured from different poses.
+- **Slot coverage** (same flags, plus `--file`): every slot a block is supposed to fill
+  (`tools/pikeman_carrier.py`'s tables) is filled exactly once in your `--slot-map`, with nothing
+  missing or duplicated.
+- **Facing-side** (config `checks.tracked_objects` / `checks.facing_side_rule` -
+  [SPRITES.md](SPRITES.md) section 9): a tracked object's on-screen position agrees with its 3D
+  geometry across facings - `render_sprites.py` measures the 3D side, `finish_sprites.py` measures
+  the on-screen side from the mask, and this check compares them. Originally built to confirm a
+  shield stayed on the correct arm across all 8 facings; the same check catches a mirrored rig or a
+  flipped facing convention on anything you track.
+
+```
+py -3 tools/validate_sprites.py --frames out/frames/walk --config my_scene.json --carrier pikeman --block walk
+```

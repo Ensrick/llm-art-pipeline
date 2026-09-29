@@ -112,6 +112,16 @@ that's expected and fine; the plugin below simply keeps the native frame for eve
 rendered yet). `out/atlas/Vanguard/body_skirmisher/` now holds `page0.png`, `page0_m.png`,
 `frames.tsv`, `manifest.json` and the generic `atlas_index.json`.
 
+Optionally, check this batch against the game's own measurements before installing
+([SHCDE.md](SHCDE.md) section 10):
+
+```powershell
+py -3 tools/validate_sprites.py --frames out/frames/walk --config my_scene.json --carrier pikeman --block walk --file body_skirmisher
+```
+
+At this tutorial's reduced scale, expect `FAIL slot coverage` (only 32 of 128 slots are filled -
+that's expected here) but `PASS` on the mask contract and the native frame-size comparison.
+
 ## 7. Build and install the plugin (needs the actual game)
 
 ```powershell

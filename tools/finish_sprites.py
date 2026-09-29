@@ -6,9 +6,16 @@ Per frame, from --raw/frames.json to --out/:
   - shadow: the union of the projected, sheared silhouette triangles rasterised at N x supersample
     and downsampled (Lanczos), multiplied once by shadow.alpha/255, pure black, composited UNDER
     the straight-alpha beauty render.
-  - <key>_m.png: every channel of the raw mask, weighted by (body alpha / final alpha) so
-    shadow-only and edge pixels get none of whatever that channel encodes (team colour, or
-    anything else you wired up in render_sprites.py's mask config); A = the final alpha.
+  - <key>_m.png: R and B pass through the raw mask, weighted by (body alpha / final alpha) so
+    shadow-only and edge pixels get none of whatever that channel encodes (team colour by default -
+    see render_sprites.py's mask config); A = the final alpha. G is special-cased: if the config's
+    `mask.green_channel` is set, G becomes SHCDE's own row-based cutaway ramp (docs/SHCDE.md
+    section 7), measured from the game, replacing whatever render_sprites.py put there (such as a
+    tracked object's flag - see below) for the raw mask only.
+  - tracked-object measurement: for each of the config's `checks.tracked_objects`, this pass finds
+    its alpha-weighted pixel centroid on the *raw* mask's flagged channel, before that channel is
+    possibly overwritten by the ramp above, and adds it next to render_sprites.py's own 3D
+    measurement of the same object - `validate_sprites.py` compares the two.
   - refusal: if any pixel of the body or its shadow reaches the canvas border, the run stops
     (exit 2) instead of shipping a clipped sprite - enlarge the canvas, never shrink the model.
 
@@ -43,11 +50,37 @@ def shadow_coverage(pts, tris, size, supersample):
     return big.resize((w, h), Image.Resampling.LANCZOS)
 
 
+def green_ramp(intercept, slope_per_px, pivot_row_from_top, width, height):
+    """SHCDE's own cutaway ramp (docs/SHCDE.md section 7), measured from the game: one row value
+    per canvas row, broadcast across the width. Row 0 is the canvas top."""
+    rows = np.arange(height, dtype=np.float64)[:, None]
+    value = np.clip(np.rint(intercept + slope_per_px * (rows - pivot_row_from_top)), 0, 255)
+    return np.broadcast_to(value, (height, width)).astype(np.uint8)
+
+
+_CHANNEL_INDEX = {"Red": 0, "Green": 1, "Blue": 2}
+
+
+def centroid(weight):
+    """Alpha-weighted pixel centroid of a 2D weight image, top-left origin, pixel centres at
+    x.5/y.5; (None, 0.0) when nothing is set."""
+    total = float(weight.sum())
+    if total <= 0:
+        return None, 0.0
+    ys, xs = np.indices(weight.shape)
+    return [round(float((xs * weight).sum() / total) + 0.5, 2),
+            round(float((ys * weight).sum() / total) + 0.5, 2)], total
+
+
 def finish(args):
     man = json.loads((args.raw / "frames.json").read_text(encoding="utf-8"))
     args.out.mkdir(parents=True, exist_ok=True)
     cam, sh = man["camera"], man["shadow"]
     W, H = cam["canvas"]
+    tracked_cfg = man.get("checks", {}).get("tracked_objects", [])
+    green_cfg = man.get("mask", {}).get("green_channel")
+    ramp = green_ramp(green_cfg["intercept"], green_cfg["slope_per_px"], cam["pivot_px_top_left"][1],
+                      W, H) if green_cfg else None
     topo_cache = {}
     finished, clipped = [], []
     for f in man["frames"]:
@@ -69,11 +102,27 @@ def finish(args):
         combined = Image.alpha_composite(layer, beauty)      # shadow first, beauty on top
         out_a = np.asarray(combined.getchannel("A"))
 
-        # mask: every channel weighted by how much of the final pixel is actual body (not shadow-only
-        # or a soft edge), so nothing you flagged in render_sprites.py bleeds onto the shadow
+        # tracked-object centroids, from the RAW mask's flagged channel (before any of it is
+        # overwritten below) weighted by the beauty alpha - the pixel half of the facing-side check.
+        tracked = dict(f.get("tracked", {}))
+        alpha_share = body_a.astype(np.float64) / 255.0
+        for spec in tracked_cfg:
+            if "mask_channel" not in spec:
+                continue
+            idx = _CHANNEL_INDEX[spec["mask_channel"]]
+            px_centroid, px_weight = centroid((raw[:, :, idx] / 255.0) * alpha_share)
+            tracked.setdefault(spec["name"], {})
+            tracked[spec["name"]]["px_centroid"] = px_centroid
+            tracked[spec["name"]]["px_weight"] = round(px_weight, 1)
+
+        # mask: R and B pass through weighted by how much of the final pixel is actual body (not
+        # shadow-only or a soft edge), so nothing you flagged in render_sprites.py bleeds onto the
+        # shadow; G is the measured cutaway ramp when configured, overwriting whatever was there.
         m = np.zeros((H, W, 4), dtype=np.uint8)
         share = body_a.astype(np.float64) / np.maximum(out_a.astype(np.float64), 1.0)
         m[:, :, :3] = np.rint(np.clip(raw[:, :, :3] * share[:, :, None], 0, 255)).astype(np.uint8)
+        if ramp is not None:
+            m[:, :, 1] = ramp
         m[:, :, 3] = out_a
         m[out_a == 0] = 0
         mask = Image.fromarray(m)
@@ -90,7 +139,8 @@ def finish(args):
                     "body_bounds": list(beauty.getchannel("A").getbbox() or []),
                     "shadow_bounds": list(shadow.getbbox() or []),
                     "shadow_alpha_max": int(np.asarray(shadow).max()),
-                    "raw_mask_alpha_max_diff": int(np.abs(raw[:, :, 3] - body_a).max())})
+                    "raw_mask_alpha_max_diff": int(np.abs(raw[:, :, 3] - body_a).max()),
+                    "tracked": tracked})
         finished.append(rec)
 
     out = dict(man, frames=finished,

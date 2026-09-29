@@ -149,9 +149,14 @@ for that step.
 - **Extending the mask:** `render_sprites.py`'s `mask_material()` takes a list of
   `(channel, attribute_name, attribute_type)` triples, so you can wire up more than the team
   channel - a second per-object flag on the green or blue channel, for instance, for any other
-  per-pixel data your engine's shader wants. Derive whatever convention your *own* target engine
-  actually reads from its own documentation or your own shader source, not by reverse-engineering
-  another game's shipped sprite files.
+  per-pixel data your engine's shader wants.
+- **A worked, measured-from-the-game example:** SHCDE's own sprite shader reads a *second* value
+  out of the same mask, on the green channel, for a lower-sprite cutaway effect - `docs/SHCDE.md`
+  section 7 has the exact formula (an intercept and a per-pixel-row slope), measured the same way
+  the scale in section 2 was: by observing the installed game's own behaviour, not by reading its
+  code. `examples/sprite_scene.example.json`'s `mask.green_channel` and `finish_sprites.py`'s
+  `green_ramp()` implement it. This is engine-specific - if your own target reads mask channels
+  differently, derive its convention from its own documentation or shader source instead.
 
 ## 8. Frame index convention
 
@@ -182,3 +187,7 @@ ANIMATION.md 5.9's facing table for all eight directions):
       finished mask shows zero team colour on shadow-only pixels.
 - [ ] The atlas packer's two self-checks both pass: every pivot on a whole pixel, every packed
       rect byte-identical to its source crop.
+- [ ] `tools/validate_sprites.py` passes: the mask contract, any configured tracked object's
+      on-screen side agrees with its 3D geometry across facings, and (if you're comparing against
+      the game's own carrier tables) the render's frame sizes fall in a plausible range of the
+      installed game's own shipped sprites for the same kind of pose.

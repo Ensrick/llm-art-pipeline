@@ -72,7 +72,9 @@ examples/ Filled-in example configs for tools/prepare_downloaded_model.py and to
 | `prepare_downloaded_model.py` | Measure, reorient and uniform-scale a downloaded model; bake its licence onto the result | Blender |
 | `render_sprites.py` | Native-look final sprite rendering: fixed camera/lights, ground shadow, team-colour mask (see `docs/SPRITES.md`) | Blender |
 | `finish_sprites.py` | Composite the ground shadow, build the finished mask, refuse anything that clips the canvas | system Python + Pillow |
-| `pack_atlas.py` | Crop, dedupe and pack finished frames into a pivot-indexed atlas | system Python + Pillow |
+| `pack_atlas.py` | Crop, dedupe and pack finished frames into a pivot-indexed atlas (`--slot-map` for the runtime's exact format) | system Python + Pillow |
+| `pikeman_carrier.py` | The Pikeman carrier's slot/timing tables, measured from the game (`docs/SHCDE.md`) | system Python |
+| `validate_sprites.py` | Mask contract, native frame-size comparison, slot coverage and facing-side checks against the game's own measurements | system Python + Pillow |
 
 `docs/PROCESS.md`, `docs/ANIMATION.md`, `docs/GEAR.md` and `docs/SPRITES.md` explain what these are
 for and how they fit together; the tools are deliberately light on their own inline usage docs so

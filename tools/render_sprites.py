@@ -390,14 +390,40 @@ class Shafts:
 # --------------------------------------------------------------------------- per-frame geometry and shadow
 
 class Geometry:
-    """World-space bounds and the sheared ground shadow for every rendered frame."""
+    """World-space bounds and the sheared ground shadow for every rendered frame, plus optional
+    tracked-object measurements for `validate_sprites.py`'s facing-side check (config `checks`)."""
 
-    def __init__(self, cfg, meshes, cam):
-        self.meshes, self.cam = meshes, cam
+    def __init__(self, cfg, meshes, cam, rig=None):
+        self.meshes, self.cam, self.rig = meshes, cam, rig
         self.excl = set(cfg["shadow"].get("exclude_objects", []))
         self.shear = cfg["shadow"]["shear"]
         self.ground_z = cfg["ground_z"]
         self.topology = None
+        checks = cfg.get("checks", {})
+        self.reference_bone = checks.get("reference_bone")
+        self.tracked_objects = checks.get("tracked_objects", [])
+
+    def tracked(self):
+        """{"_reference_px": [x, y], name: {dx_px, depth_m}, ...} for each of
+        `checks.tracked_objects`: its offset from `checks.reference_bone`'s world position, along
+        the camera's right axis (in pixels) and view direction (in metres, +away from the camera) -
+        measured straight from the 3D scene. `_reference_px` is the reference bone's own projected
+        pixel position, so `finish_sprites.py`'s pixel centroid (an absolute canvas position) can be
+        put in the same frame as `dx_px` (relative to the reference bone) before comparing them."""
+        if not self.tracked_objects or not self.reference_bone or self.rig is None:
+            return {}
+        cam = self.cam
+        ref = np.array(self.rig.matrix_world @ self.rig.pose.bones[self.reference_bone].head)
+        out = {"_reference_px": [round(v, 2) for v in cam.to_px(ref[None])[0]]}
+        for spec in self.tracked_objects:
+            obj = bpy.data.objects.get(spec["object"])
+            if obj is None or obj.hide_render:
+                continue
+            centre = np.array(gk.world_mesh(obj)[0]).mean(axis=0)
+            rel = centre - ref
+            out[spec["name"]] = {"dx_px": round(float(rel @ cam.R) * cam.ppm, 2),
+                                 "depth_m": round(float(rel @ cam.D), 4)}
+        return out
 
     def visible(self):
         objs = [o for o in self.meshes if not o.hide_render]
@@ -434,13 +460,13 @@ class Geometry:
                 "body_bounds_px": [round(float(body_px[:, 0].min()), 2), round(float(body_px[:, 1].min()), 2),
                                    round(float(body_px[:, 0].max()), 2), round(float(body_px[:, 1].max()), 2)],
                 "shadow_vertices": int(len(pts)), "shadow_triangles": int(len(tris)),
-                "shadow_objects": len(shadow_objs), "rendered_objects": len(objs)}
+                "shadow_objects": len(shadow_objs), "rendered_objects": len(objs), "tracked": self.tracked()}
 
 
 def fingerprint(cfg, preset, samples, action, frames, facings, shaft_scale):
     body = json.dumps({"render": cfg["render"], "camera": cfg["camera"], "canvas": cfg["canvas"],
                        "px_per_m": cfg["px_per_m"], "ground_z": cfg["ground_z"], "shadow": cfg["shadow"],
-                       "team": cfg.get("team_colour", {}),
+                       "team": cfg.get("team_colour", {}), "mask": cfg.get("mask", {}), "checks": cfg.get("checks", {}),
                        "lighting": cfg["lighting"]["presets"][preset], "preset": preset, "samples": samples,
                        "action": action, "frames": frames, "facings": facings, "shaft_scale": shaft_scale},
                       sort_keys=True)
@@ -479,6 +505,16 @@ def main():
         for name in extra["objects"]:
             bpy.data.objects[name][extra["property"]] = 1.0
         mask_channels.append((extra["channel"], extra["property"], "OBJECT"))
+    for tracked in cfg.get("checks", {}).get("tracked_objects", []):
+        # A tracked object with a mask_channel gets flagged in the mask pass too, so
+        # finish_sprites.py can find its on-screen centroid to compare against Geometry.tracked()'s
+        # 3D measurement (validate_sprites.py's facing-side check).
+        if "mask_channel" not in tracked:
+            continue
+        obj = bpy.data.objects.get(tracked["object"])
+        if obj is not None:
+            obj[f"sprite_tracked_{tracked['name']}"] = 1.0
+            mask_channels.append((tracked["mask_channel"], f"sprite_tracked_{tracked['name']}", "OBJECT"))
     mask_mat = mask_material(mask_channels) if mask_channels else mask_material([])
 
     read = cfg.get("readability", {})
@@ -488,7 +524,7 @@ def main():
         if spec["object"] in bpy.data.objects:
             shafts.apply(bpy.data.objects[spec["object"]], spec["material"], scale)
 
-    geo = Geometry(cfg, meshes, cam)
+    geo = Geometry(cfg, meshes, cam, rig)
     preset = args.preset or cfg["lighting"]["preset"]
     light_info = setup_lights(cfg, preset)
 
@@ -565,7 +601,8 @@ def main():
                                                         f"{rec['key']}.shadow.npz")
     manifest = {"schema": "sprite_frames_raw/1", "rig": str(args.rig), "rig_sha256": sha256(args.rig),
                 "action": args.action, "camera": cam.info(), "render": dict(cfg["render"], samples=samples),
-                "shadow": cfg["shadow"], "team_colour": {"regions": team_regions, "neutral": neutral},
+                "shadow": cfg["shadow"], "mask": cfg.get("mask", {}), "checks": cfg.get("checks", {}),
+                "team_colour": {"regions": team_regions, "neutral": neutral},
                 "render_material_overrides": material_overrides, "lighting": light_info, "fingerprint": fp,
                 "readability": {"shaft_scale": scale, "shafts": shafts.report},
                 "atlas_pixels_per_unit": cfg.get("atlas", {}).get("pixels_per_unit"),

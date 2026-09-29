@@ -16,9 +16,9 @@ evaluated world mesh, so the rig's non-uniform height scale is included:
     no crossing    the shaft does not pass through palm or wrist, and no finger or
                    thumb triangle passes through a palm triangle
 
-Distances are signed: negative means inside the shaft. The Byzantine spear is an
-octagonal prism, so its flats sit 1.3 mm inside its 16.5 mm vertex radius; the
-real faces are used, not a cylinder. A pass is necessary, never sufficient:
+Distances are signed: negative means inside the shaft. The example spear this was tuned
+against is an octagonal prism, so its flats sit 1.3 mm inside its 16.5 mm vertex radius;
+the real faces are used, not a cylinder. A pass is necessary, never sufficient:
 review the close-ups.
 """
 

@@ -32,8 +32,8 @@ BOX_COLOR = (0.06, 0.06, 0.07)
 FONT_SIZE = 15.0
 LINE_GAP = 23.0
 BODY_MESHES = ("Male_Peasant_Arms", "Male_Peasant_Body", "Male_Peasant_Legs", "Male_Peasant_Feet",
-               "CC0_Head_Only", "Byzantine_Padded_Sleeve_L", "Byzantine_Padded_Sleeve_R",
-               "Byzantine_Quilted_Cuirass", "Byzantine_Fitted_Helmet", "Byzantine_Left_Forearm_Shield")
+               "CC0_Head_Only", "Padded_Sleeve_L", "Padded_Sleeve_R",
+               "Quilted_Cuirass", "Fitted_Helmet", "Left_Forearm_Shield")
 
 # name: (camera look direction, image height px)
 VIEWS = {

@@ -75,6 +75,33 @@ cd llm-art-pipeline
 py -3 -m pip install pillow
 ```
 
+## Testing against your own rig
+
+`anim_cookbook_selftest.py` and `gear_kit_selftest.py` need a sample rigged character to run
+against - none is shipped (see [Assets](#assets)). Point them at your own files matching this
+shape (the exact names the scripts look for, read straight from the code):
+
+**`anim_cookbook_selftest.py`** - set `ANIM_COOKBOOK_ASSETS` to a folder containing:
+- `UAL1_Standard.glb`: an animation-library file with a `Walk_Loop` action, on a rig using bone
+  names `hand_l`, `hand_r`, `thigh_l`, `calf_l`, `foot_l`, `foot_r`, `ball_l`, `Head`.
+- `Male_Peasant.gltf`: a second rig (the retarget target) with matching bone names, plus mesh
+  objects named `Male_Peasant_Arms` and `Male_Peasant_Body`.
+
+**`gear_kit_selftest.py`** - set `GEAR_KIT_ART` to a folder shaped like this repo's original
+`art/` layout, containing:
+- `hoplite/shared_spearman/shared_spearman.blend`: a rig (named by `anatomy_map.json`'s `"rig"`
+  key) with actions `Spear_Guard_Idle`, `Walk_Carry`, `Spear_Underarm_Thrust`, and objects
+  `Male_Peasant_Arms`, `Male_Peasant_Legs`, `Male_Peasant_Body`, `Fitted_Helmet`,
+  `Left_Forearm_Shield`, `Shield_Leather_Forearm_Band`, `Right_Hand_Spear`, `Quilted_Cuirass`.
+  Its own chart render (`body_charts.py`) additionally expects `Male_Peasant_Feet`,
+  `CC0_Head_Only`, `Padded_Sleeve_L`, `Padded_Sleeve_R`.
+- `hoplite/shared_spearman/anatomy_map.json`: role/bone/joint names for that rig.
+- `shared_humanoid/candidates/attachment_socket_pilot/attachment_frames.json`: a sample
+  body/prop socket manifest in `attachment_sockets.py`'s schema.
+
+None of this is needed to use the tools themselves on your own rig and your own object names -
+only to run their self-tests, which check the helpers against a known-shape fixture.
+
 ## Quickstart: a model to a review GIF to a sprite sheet
 
 This assumes you already have a rigged character `.blend` and at least one animation library

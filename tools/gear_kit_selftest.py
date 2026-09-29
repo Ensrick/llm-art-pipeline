@@ -52,7 +52,7 @@ rig = bpy.data.objects[anatomy["rig"]]
 O = bpy.data.objects
 standing = {pb.name: pb.matrix_basis.copy() for pb in rig.pose.bones}
 ACTIONS = [(bpy.data.actions[n], last) for n, last in (
-    ("Byzantine_Spear_Guard_Idle", 60), ("Byzantine_Walk_Carry", 32), ("Byzantine_Spear_Underarm_Thrust", 36))]
+    ("Spear_Guard_Idle", 60), ("Walk_Carry", 32), ("Spear_Underarm_Thrust", 36))]
 SHORT = [(a, 4) for a, _ in ACTIONS]                                   # first 5 frames of each action
 check("rig inherits a non-uniform world scale (the case the kit handles)",
       abs(rig.matrix_world.to_scale().z - 0.9) < 1e-4, f"scale {tuple(round(v, 4) for v in rig.matrix_world.to_scale())}")
@@ -70,10 +70,10 @@ check("frame / orthonormal / body_local_from_world", err < 1e-5, f"max matrix er
 
 # 2. manifests: the sample socket file plus a generated one, merged
 axe, mace = gk.build_axe("Gear_Axe"), gk.build_mace("Gear_Mace")
-helmet = O["Byzantine_Fitted_Helmet"]
+helmet = O["Fitted_Helmet"]
 head = rig.pose.bones["Head"]
 seat_world = gk.frame(rig.matrix_world @ (head.matrix @ Vector((0, 0.10, 0))), (0, 0, 1), (0, -1, 0))
-shield = O["Byzantine_Left_Forearm_Shield"]
+shield = O["Left_Forearm_Shield"]
 band_co, _ = gk.world_mesh(O["Shield_Leather_Forearm_Band"])
 fa, fb = (rig.matrix_world @ rig.pose.bones["lowerarm_l"].head, rig.matrix_world @ rig.pose.bones["lowerarm_l"].tail)
 c = Vector(band_co.mean(0))
@@ -120,14 +120,14 @@ gk.rest_pose(rig, False)
 check("shell_garment + transfer_weights (limit 4, normalized)", most <= 4 and worst < 1e-5 and rest_hits == 0,
       f"max influences {most}, max |sum-1| {worst:.1e}, rest intersections {rest_hits}, {time.time() - t:.2f} s")
 ITEMS = {"schema": gk.ITEMS_SCHEMA, "items": {
-    "spear": {"object": "Byzantine_Right_Hand_Spear", "kind": "prop", "prop_socket": "spear_main_grip"},
+    "spear": {"object": "Right_Hand_Spear", "kind": "prop", "prop_socket": "spear_main_grip"},
     "axe": {"object": "Gear_Axe", "kind": "prop", "prop_socket": "axe_haft_grip"},
     "mace": {"object": "Gear_Mace", "kind": "prop", "prop_socket": "mace_haft_grip"},
     "shield": {"object": shield.name, "kind": "prop", "prop_socket": "shield_strap_center",
                "parts": ["Shield_Leather_Forearm_Band", "Shield_Band_lower_Rivet", "Shield_Band_upper_Rivet"],
                "parts_on": ["left_forearm_shield_strap"]},
     "helmet": {"object": helmet.name, "kind": "prop", "prop_socket": "helmet_seat"},
-    "quilted_cuirass": {"object": "Byzantine_Quilted_Cuirass", "kind": "skinned"},
+    "quilted_cuirass": {"object": "Quilted_Cuirass", "kind": "skinned"},
     "mail_hauberk": {"object": "Gear_Mail_Hauberk", "kind": "skinned", "hides": ["torso_under_hauberk"]}}}
 BASE = {"schema": gk.LOADOUT_SCHEMA, "unit": "selftest", "name": "spearman", "slots": {
     "main_hand": {"item": "spear", "attach": "socket", "socket": "right_palm_shaft_grip"},
@@ -147,7 +147,7 @@ def verts_world(obj):
 
 
 # 4. one-call swaps
-spear = O["Byzantine_Right_Hand_Spear"]
+spear = O["Right_Hand_Spear"]
 t = time.time()
 eq = gk.apply_loadout(rig, BASE, ITEMS, frames, anatomy, sockets)
 t_apply = time.time() - t
@@ -176,7 +176,7 @@ gk.apply_loadout(rig, variant(torso={"item": "mail_hauberk", "attach": "skinned"
 dg = bpy.context.evaluated_depsgraph_get()
 masked = len(body.evaluated_get(dg).to_mesh().polygons)
 body.evaluated_get(dg).to_mesh_clear()
-cuirass_hidden = O["Byzantine_Quilted_Cuirass"].hide_render and not hauberk.hide_render
+cuirass_hidden = O["Quilted_Cuirass"].hide_render and not hauberk.hide_render
 gk.apply_loadout(rig, BASE, ITEMS, frames, anatomy, sockets)
 dg = bpy.context.evaluated_depsgraph_get()
 unmasked = len(body.evaluated_get(dg).to_mesh().polygons)
@@ -197,7 +197,7 @@ for slot, spec in BASE["slots"].items():
                          frames["prop_sockets"][ITEMS["items"][spec["item"]]["prop_socket"]], (z.index(min(z)), z.index(max(z)))))
 res = gk.validate_loadout(rig, attached, [(spear, arms), (shield, body)], SHORT, frames, anatomy, sockets, standing)
 drift = max(v[0] for v in res["drift_mm_deg"].values())
-check("validate_loadout", drift < 1e-3 and "Byzantine_Spear_Guard_Idle" in res["pairs"][f"{spear.name}|{arms.name}"],
+check("validate_loadout", drift < 1e-3 and "Spear_Guard_Idle" in res["pairs"][f"{spear.name}|{arms.name}"],
       f"max drift {drift:.5f} mm over 15 frames, spear length {res['length_m'][spear.name]}")
 
 # 6. nudges: maths round trip, and writeback from a moved marker

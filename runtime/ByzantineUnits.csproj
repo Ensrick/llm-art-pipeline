@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- A BepInEx 5 plugin for Stronghold Crusader Definitive Edition, on top of Rawra's Script
+       Extender (SHCDESE) - see docs/RUNTIME.md for what each piece does and why, and docs/SHCDE.md
+       for the game facts (carrier slot tables, timing, atlas format) this code relies on.
+
+       Build (after installing the game, BepInEx 5 and the Script Extender - docs/RUNTIME.md):
+         dotnet build runtime\ByzantineUnits.csproj -c Release
+       Every reference below comes from the installed game and mods; nothing is copied into the
+       output, and none of it is redistributed by this repository (see the top-level README). Point
+       GameDir at your own install if it isn't at the default path:
+         dotnet build runtime\ByzantineUnits.csproj -c Release -p:GameDir="D:\Games\...\Stronghold Crusader Definitive Edition" -->
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>ByzantineUnits</AssemblyName>
+    <RootNamespace>ByzantineUnits</RootNamespace>
+    <Version>0.1.0</Version>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Stronghold Crusader Definitive Edition</GameDir>
+    <ManagedDir>$(GameDir)\Stronghold Crusader Definitive Edition_Data\Managed</ManagedDir>
+    <ExtenderDir>$(GameDir)\BepInEx\plugins\000shcdese</ExtenderDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- BepInEx 5 and its bundled MonoMod, for the plugin base class and the managed-method hooks
+         (MonoMod.RuntimeDetour.Hook) that UnitPlacement.cs and UnitSprites.cs use. -->
+    <Reference Include="BepInEx"><HintPath>$(GameDir)\BepInEx\core\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MonoMod.RuntimeDetour"><HintPath>$(GameDir)\BepInEx\core\MonoMod.RuntimeDetour.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MonoMod.Utils"><HintPath>$(GameDir)\BepInEx\core\MonoMod.Utils.dll</HintPath><Private>false</Private></Reference>
+    <!-- The Script Extender: its typed interop (SHCDESE.Interop.*), its reactive event API
+         (SHCDESE.EventAPI.*, built on R3) and its save-data API. -->
+    <Reference Include="SHCDESE"><HintPath>$(ExtenderDir)\SHCDESE.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="R3"><HintPath>$(ExtenderDir)\R3.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Abstractions"><HintPath>$(ExtenderDir)\Microsoft.Extensions.Logging.Abstractions.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Memory"><HintPath>$(ExtenderDir)\System.Memory.dll</HintPath><Private>false</Private></Reference>
+    <!-- The game's own Unity runtime and managed code. -->
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <Target Name="CheckGameReferences" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(ExtenderDir)\SHCDESE.dll')" Text="Script Extender not found: $(ExtenderDir)\SHCDESE.dll - see docs/RUNTIME.md" />
+    <Error Condition="!Exists('$(ManagedDir)\Assembly-CSharp.dll')" Text="Game assemblies not found: $(ManagedDir)" />
+  </Target>
+</Project>

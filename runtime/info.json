@@ -1,0 +1,8 @@
+{
+  "GUID": "ByzantineUnits",
+  "Author": "Ensrick",
+  "Name": "Byzantine units",
+  "Description": "Native Map Editor troop tab and exact-ID identity route for custom units drawn over stock carriers.",
+  "Version": "0.1.0",
+  "Manifest": 1
+}

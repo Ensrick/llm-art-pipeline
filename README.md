@@ -1,14 +1,40 @@
 # LLM Art Pipeline
 
 An LLM-agent-driven workflow and toolkit for turning a rigged 3D model into reviewed animation
-clips, and (optionally) into 2D game sprites - built around a tight loop: an agent edits motion or
-gear in 3D, renders a cheap review clip, a human approves or gives plain-language edits, repeat,
-then export the final asset once.
+clips and native-looking 2D game sprites - built around a tight loop: an agent edits motion or gear
+in 3D, renders a cheap review clip, a human approves or gives plain-language edits, repeat, then
+export the final asset once.
 
 This repository holds the **process and the reusable tools only**. It ships no 3D models,
-textures, animation clips, images, audio or video of any kind, and no third-party or game assets -
-see [Assets](#assets) below. Everything here is text: Python, documentation and a couple of small
-JSON examples.
+textures, animation clips, images, audio or video of any kind, and no third-party, game or
+downloaded-model assets - see [Assets](#assets) below. Everything here is text: Python, C#,
+PowerShell, documentation and a couple of small JSON examples.
+
+## Target
+
+This pipeline is built and documented against one concrete target: **Stronghold Crusader
+Definitive Edition** (a Unity remaster), modded through **BepInEx 5** and
+[**Rawra's Script Extender**](https://gitlab.com/rawra-stronghold-crusader/shcde-script-extender)
+(SHCDESE - see that repository for its current version and licence). [`docs/SHCDE.md`](docs/SHCDE.md)
+has the game facts (carrier animation tables, timing, scale, atlas format) and
+[`docs/RUNTIME.md`](docs/RUNTIME.md) has the plugin that draws custom art in that game. The four
+earlier guides (PROCESS/ANIMATION/GEAR/SPRITES) are written to generalize beyond this one target -
+useful on their own for a different engine - but this repository's runtime code, its example scene
+config's exact numbers, and the worked tutorial are specifically for this game.
+
+**The end-to-end order**, each stage a separate doc:
+1. Start from a free, CC0-licensed base body and rig ([ANIMATION.md](docs/ANIMATION.md) section 4).
+2. Fit gear and props onto it ([GEAR.md](docs/GEAR.md)).
+3. Animate ([ANIMATION.md](docs/ANIMATION.md)).
+4. Review every change in 3D before anything slow runs ([PROCESS.md](docs/PROCESS.md)).
+5. Export native-looking sprites ([SPRITES.md](docs/SPRITES.md), `tools/render_sprites.py` +
+   `tools/finish_sprites.py`).
+6. Pack an atlas ([SHCDE.md](docs/SHCDE.md) section 6, `tools/pack_atlas.py`).
+7. Build and install the runtime plugin ([RUNTIME.md](docs/RUNTIME.md)).
+8. Check it in the game (docs/PROCESS.md section 2, step 10).
+
+[`docs/TUTORIAL.md`](docs/TUTORIAL.md) walks all eight steps for one real example, with exact
+commands.
 
 ## Why
 
@@ -23,7 +49,8 @@ it's the first thing to read.
 
 ```
 tools/    Reusable Blender + Python helpers (see below)
-docs/     PROCESS.md, ANIMATION.md, GEAR.md, SPRITES.md - the method, written for a newcomer
+runtime/  The BepInEx plugin that draws custom sprites in SHCDE (see docs/RUNTIME.md)
+docs/     PROCESS.md, ANIMATION.md, GEAR.md, SPRITES.md, SHCDE.md, RUNTIME.md, TUTORIAL.md
 examples/ Filled-in example configs for tools/prepare_downloaded_model.py and tools/render_sprites.py
 ```
 
@@ -51,6 +78,15 @@ examples/ Filled-in example configs for tools/prepare_downloaded_model.py and to
 for and how they fit together; the tools are deliberately light on their own inline usage docs so
 those guides don't drift out of sync with the code.
 
+**Runtime (SHCDE-specific, [docs/RUNTIME.md](docs/RUNTIME.md)):**
+
+| Path | What it does |
+|---|---|
+| `runtime/ByzantineUnits.csproj` | The BepInEx 5 plugin project (net481); builds against your own installed game, BepInEx and Script Extender |
+| `runtime/src/*.cs` | Atlas loading and verification, the editor identity route, the sprite-draw hook - see docs/RUNTIME.md section 1 for what each file does |
+| `runtime/install.ps1`, `rollback.ps1`, `common.ps1` | Build, verify, back up (never delete) and install; undo the same way |
+| `runtime/info.json` | The plugin's BepInEx manifest |
+
 ## Requirements
 
 - **Blender 4.4** (the version this was built and tested against; every Blender-side script is run
@@ -66,6 +102,9 @@ those guides don't drift out of sync with the code.
 - The example commands below use PowerShell syntax (`&`, quoted paths) since that's this project's
   own shell. Blender itself runs the same way on macOS/Linux; adjust the invocation syntax for your
   shell - nothing here is Windows-specific beyond the example commands.
+- For the runtime plugin only ([RUNTIME.md](docs/RUNTIME.md)): Stronghold Crusader Definitive
+  Edition, BepInEx 5, Rawra's Script Extender, and a .NET SDK that can target `net481` (see
+  [SHCDE.md](docs/SHCDE.md) section 1 for links and versions).
 
 ## Install
 
@@ -192,21 +231,28 @@ sprites.
 
 ## Assets
 
-**This repository never holds assets - only the process and the tools.** Nothing 3D, no images, no
-audio, no video, no archives, and nothing from any third party or any game ships here; `.gitignore`
-blocks every such file type at the extension level so this stays true by default, not just by
-convention. Bring your own rig, animation library and downloaded props; `docs/ANIMATION.md` section
-4 and section 7 point at commonly-used free and paid sources and their licence terms as of when
-this was written - re-verify current terms yourself before shipping anything.
+**This repository never holds assets - only the process, the tools and the runtime source.**
+Nothing 3D, no images, no audio, no video, no archives, and no third-party, game or
+downloaded-model file ships here; `.gitignore` blocks every such file type at the extension level
+so this stays true by default, not just by convention. Bring your own rig, animation library and
+downloaded props; `docs/ANIMATION.md` section 4 and section 7 point at commonly-used free and paid
+sources and their licence terms as of when this was written - re-verify current terms yourself
+before shipping anything. The game itself, BepInEx and the Script Extender are separate downloads
+this repository doesn't redistribute (see [Target](#target)).
 
 ## Contributing
 
-Pull requests are welcome for the process docs and the tools themselves. Please keep to the same
-rule this repository holds itself to: **no assets, ever** - no `.blend`/`.fbx`/`.obj`/image/
-audio/video/archive files, no third-party or game-derived content, and no hard-coded personal
-paths (use a command-line argument, an environment variable, or a config file instead, following
-the existing tools' pattern). If a tool needs a sample asset to demonstrate or test against,
-document what shape it needs rather than committing one.
+Pull requests are welcome for the process docs, the tools and the runtime plugin. Please keep to
+the same rules this repository holds itself to:
+- **No assets, ever** - no `.blend`/`.fbx`/`.obj`/image/audio/video/archive files, and nothing
+  extracted from the game itself.
+- **No hard-coded personal paths** - a command-line argument, an environment variable or a config
+  file instead, following the existing tools' pattern. If a tool needs a sample asset to
+  demonstrate or test against, document what shape it needs rather than committing one.
+- **No decompiled game code** in the runtime plugin or its docs - a fact about the game's observable
+  behaviour (a slot range, a timing number, a file format) is fine and often necessary; a native
+  function address, a disassembly line number or an extracted binary hash is not. See
+  [RUNTIME.md](docs/RUNTIME.md) section 1 for where this project already drew that line.
 
 ## Licence
 

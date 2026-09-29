@@ -12,7 +12,7 @@ Outputs, under --out:
   atlas.png, atlas_m.png    the packed colour and mask atlases (binaries - keep these local, don't
                             commit them; see this repo's own README/.gitignore for why)
   atlas_index.json          every entry: which source frame, its rect, its pivot, and a couple of
-                            cheap self-checks (see below)
+                            cheap self-checks (see below) - a generic, engine-agnostic index
 
 Two checks run automatically and fail the build (exit 1) rather than silently shipping a bad atlas:
   - every pivot lands on a whole pixel of its own rect (a fractional pivot means the camera/canvas
@@ -21,6 +21,13 @@ Two checks run automatically and fail the build (exit 1) rather than silently sh
     not just a source-data bug).
 
     py -3 tools/pack_atlas.py --frames out/frames/walk out/frames/idle --out out/atlas --config sprite_scene.json
+
+With --slot-map (a JSON object mapping each frame's "key" - as frames.json names it - to a target
+integer slot), also writes page0.png, page0_m.png, frames.tsv and manifest.json in the shape
+runtime/src/AtlasManifest.cs and FrameTable.cs read (see docs/RUNTIME.md and docs/SHCDE.md for what
+a "slot" is and how a carrier's slots are laid out): pass --unit, --file and optionally
+--team-colour to fill in the manifest. This is the SHCDE-specific output; skip --slot-map entirely
+for any other target and use atlas_index.json instead.
 """
 
 import argparse
@@ -41,6 +48,11 @@ def parse():
     p.add_argument("--width", type=int, help="override the config's atlas.width (default 2048)")
     p.add_argument("--padding", type=int, help="override the config's atlas.padding (default 2)")
     p.add_argument("--pixels-per-unit", type=float, help="override the config's atlas.pixels_per_unit")
+    p.add_argument("--slot-map", type=Path, help="JSON {\"<frame key>\": <carrier slot int>, ...}; "
+                   "see docs/SHCDE.md for a carrier's slot layout. Enables the manifest.json/frames.tsv output.")
+    p.add_argument("--unit", help="manifest.json 'unit' field (required with --slot-map)")
+    p.add_argument("--file", dest="file_name", help="manifest.json 'file' field, e.g. body_skirmisher (required with --slot-map)")
+    p.add_argument("--team-colour", help="manifest.json 'teamColour' field (optional)")
     return p.parse_args()
 
 
@@ -135,6 +147,49 @@ def main():
         print("## CHECK FAILURES: pivot not on a whole pixel:", pivot_bad)
         print("## CHECK FAILURES: packed pixels changed from the source crop:", pixel_bad)
         raise SystemExit(1)
+
+    if args.slot_map:
+        write_runtime_manifest(args, entries, atlas, atlas_m, ppu)
+
+
+def write_runtime_manifest(args, entries, atlas, atlas_m, ppu):
+    """page0.png/page0_m.png + frames.tsv + manifest.json, exactly as AtlasManifest.cs/FrameTable.cs
+    read them (one page, since this packer only ever builds a single combined image)."""
+    if not args.unit or not args.file_name:
+        raise SystemExit("--slot-map needs --unit and --file too")
+    slot_map = json.loads(args.slot_map.read_text(encoding="utf-8"))
+    missing = [e["key"] for e in entries if e["key"] not in slot_map]
+    if missing:
+        raise SystemExit(f"--slot-map is missing {len(missing)} frame(s), e.g. {missing[:5]}")
+    page_name, mask_name = "page0.png", "page0_m.png"
+    atlas.save(args.out / page_name, optimize=True)
+    atlas_m.save(args.out / mask_name, optimize=True)
+    page_sha = hashlib.sha256((args.out / page_name).read_bytes()).hexdigest().upper()
+    mask_sha = hashlib.sha256((args.out / mask_name).read_bytes()).hexdigest().upper()
+
+    rows = ["slot\talt\tpage\tx\ty\tw\th\tpivot_x\tpivot_y\tppu"]
+    seen_slots = set()
+    for e in sorted(entries, key=lambda e: slot_map[e["key"]]):
+        slot = int(slot_map[e["key"]])
+        if slot in seen_slots:
+            raise SystemExit(f"--slot-map assigns slot {slot} to more than one frame")
+        seen_slots.add(slot)
+        r = e["rect"]
+        rows.append(f"{slot}\t0\t0\t{r['x']}\t{r['y']}\t{r['w']}\t{r['h']}\t"
+                    f"{e['pivot_px']['x']:.6g}\t{e['pivot_px']['y']:.6g}\t{ppu or 1.0:.6g}")
+    frames_tsv = "\n".join(rows) + "\n"
+    (args.out / "frames.tsv").write_text(frames_tsv, encoding="utf-8", newline="\n")
+    frames_sha = hashlib.sha256(frames_tsv.encode("utf-8")).hexdigest().upper()
+
+    manifest = {"schema": "sprite_atlas_manifest/1", "unit": args.unit, "file": args.file_name,
+                "normal": len(entries), "alternate": 0, "framesSha256": frames_sha,
+                "pages": [{"name": page_name, "mask": mask_name, "width": atlas.width, "height": atlas.height,
+                          "sha256": page_sha, "maskSha256": mask_sha}]}
+    if args.team_colour:
+        manifest["teamColour"] = args.team_colour
+    (args.out / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+    print(f"runtime manifest: {args.unit}/{args.file_name}, {len(entries)} frames, "
+          f"slots {min(seen_slots)}-{max(seen_slots)}")
 
 
 if __name__ == "__main__":

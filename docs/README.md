@@ -10,5 +10,11 @@
 - **[SPRITES.md](SPRITES.md)** - making the final sprite export look native: the camera angle,
   lighting, colour management, the ground shadow, the pivot rule and the team-colour mask, with
   real numbers.
+- **[SHCDE.md](SHCDE.md)** - this pipeline's actual target, Stronghold Crusader Definitive Edition:
+  carrier animation tables, facings, scale, atlas format and UI sizes, as numbers.
+- **[RUNTIME.md](RUNTIME.md)** - how custom art reaches the game: the BepInEx plugin's identity
+  route, its build guide, and its install/rollback scripts.
+- **[TUTORIAL.md](TUTORIAL.md)** - one real example, start to finish, with exact commands and what
+  "done" looks like at each step.
 
-See the [top-level README](../README.md) for installing the tools and a quickstart.
+See the [top-level README](../README.md) for installing the tools, the target and a quickstart.

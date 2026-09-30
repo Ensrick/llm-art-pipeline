@@ -36,10 +36,17 @@ step), it matters a lot.
 5. **The verdict**, item by item: approve, change (with edit words - see ANIMATION.md section 3),
    or defer. Whether to fix a small flaw or live with it is decided here, in 3D, never after the
    final export.
-6. **Repeat steps 2 to 5** until approved. Each round is one batch of edits.
-7. **Freeze.** The owner commits, then tells whoever runs the final export that the inputs are
-   frozen as of that commit (section 5).
-8. **Final render/export**, from the frozen commit only.
+6. **Repeat steps 2 to 5** until approved. Each round is one batch of edits. Approve from the 3D
+   seen through several angles in your actual renderer, not only a fast viewport pass - a
+   viewport-only proof can pass review and still turn out wrong once it's actually rendered.
+7. **Move on to the asset's next animation without exporting yet.** Exporting (sprites, a baked
+   texture, whatever section 1 called slow) after every single approval costs more than it saves; get
+   a first approved look at everything the unit does before paying that cost even once. Keep a
+   per-unit approval list in its own notes: every action, the commit it was approved at, and
+   what's still deferred.
+8. **Freeze and export once**, when every animation has an approved first look. The owner commits,
+   tells whoever runs the final export that the inputs are frozen as of that commit (section 5),
+   and that export runs a single time for the whole unit, from the frozen commit only.
 9. **Install / integrate**, with a receipt (a log line, a commit, whatever lets you point at what
    changed) and a rollback path. Make this step art-only when only the final export changed.
 10. **Check the real result.** At this stage expect only problems that show at final scale:
@@ -66,10 +73,15 @@ Send only what changed in this round, in files small enough to open on a phone.
   shows which way a carried object faces).
 - **A scale strip**, only when colour, shine or silhouette is the question: the asset at native
   export size and at 3-4x.
-- **Team/variant colour**, when a tinted part changed: a sheet showing every variant's tint.
-- **Renderer choice.** Motion-only clips can use a fast viewport renderer. Material, metal and
-  shine must be reviewed through your actual shading path, because a fast preview renderer
-  commonly ignores metallic/shine parameters that your final renderer honours.
+- **Every sheet the project owner approves from needs a pass through your real renderer, from more
+  than one angle, with any team/variant colour applied** - not the untinted base colour a static
+  preview would otherwise show. A fast viewport renderer is fine for spotting a motion problem
+  early, but it's not what ships: a viewport-only proof has been approved and then turned out wrong
+  once actually rendered, because a fast preview renderer commonly ignores metallic/shine
+  parameters (and sometimes tint) that your final renderer honours. At minimum, send the angle your
+  final export actually uses, plus one more.
+- **Team/variant colour**, whenever a tinted part itself changed: a dedicated sheet showing every
+  variant's tint side by side, in addition to the tinted multi-angle pass above.
 - **changes.md**, 5 lines at most: what changed, the check numbers, and what is deferred.
 - Save review files under a per-unit `review/` folder, named `<unit>_<change>_r<round>.gif`.
 - If a later change makes a review file wrong, re-render it or say so in the unit's notes. A stale
@@ -171,6 +183,23 @@ If more than one agent or tool touches the same repository and the same live bui
     around.
 - **Deaths and lying/prone frames:** check gear against the body once it's on the ground, not just
   standing. Skirts, straps and anything slung on the back are the usual offenders for clipping.
+- **Posing limbs: move the whole chain, not one bone.** Moving just a foot or a hand and leaving
+  its chain unsolved leaves the knee or elbow hanging in its old position and deforms the mesh
+  around it. Pose legs and arms through the chain with the pole target following, rotations only -
+  never move an end effector and expect the middle joint to follow on its own. Solve from the rig's
+  own rest bones with the joint acting as a pure hinge; carrying over small rotations from a
+  different pose instead leaves the bone's roll uncontrolled and twists the skin at the knee or
+  elbow.
+  - **Before any review, check:** every deform bone still has its rest-pose length and scale,
+    knees and elbows bend the anatomically correct way, hand mesh strain stays under about 2%, and
+    strain elsewhere in the limb is no worse than the rig's own already-approved actions - shown
+    side by side with one of them for the visual call. A single fixed strain ceiling doesn't work
+    across an entire rig: a rest pose that already carries some strain into every action built from
+    it (a carried weapon's resting bend, for instance) needs a correspondingly higher gate for
+    actions that start from it, measured from your own approved actions rather than assumed.
+  - **Whoever reviews the pose looks at the whole figure**, from the front and from a true side
+    view, at the actual held pose - not only a close-up proof crop of the one thing that changed. A
+    crop can look correct while a joint elsewhere in the same pose is wrong.
 - **Scale:** scale models uniformly. A non-uniform (for example height-only) scale applied to a
   rig will stretch any rigid prop that's parented to a rotating bone on that rig - a real example
   from this kind of setup turned a prop about 10% too long in certain poses purely from an
@@ -205,10 +234,17 @@ later."
 - [ ] The change is behind a flag, and the currently-shipping look still renders unchanged.
 - [ ] The checks are run and their numbers recorded: intersections/crossings, joint bend limits,
       grip quality, ground clearance, loop seam, and any colour/mask checks that apply.
-- [ ] The review package has clips from the real camera angle and a close view, a before-and-after,
-      a proof frame for the specific complaint, and a short changes note.
+- [ ] For a posed limb: every deform bone kept its rest length and scale, knees/elbows bend the
+      right way, hand strain is under about 2%, and limb strain elsewhere is no worse than an
+      already-approved action - and someone looked at the whole figure, front and true side, not
+      only a proof crop.
+- [ ] The review package has a real-renderer pass from more than one angle with team/variant tint
+      applied, a close view, a before-and-after, a proof frame for the specific complaint, and a
+      short changes note.
 - [ ] Every file has actually been opened and looked at before it goes to the project owner.
-- [ ] The project owner has approved it in 3D before any freeze/handoff.
+- [ ] The project owner has approved every animation in 3D, each recorded in the unit's per-action
+      approval list, before any export - the slow export step runs once for the whole unit, not
+      once per approval.
 - [ ] The freeze/handoff message is complete and its inputs stay frozen until the build is
       confirmed installed.
 - [ ] Follow-up work happens in a separate branch/worktree, and any now-stale review files are
